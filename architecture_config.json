@@ -1,0 +1,177 @@
+{
+  "meta": {
+    "appName": "CloudMotion",
+    "version": "1.0.0",
+    "description": "Biometric web application with point cloud effect",
+    "author": "SystemArchitect",
+    "license": "Proprietary"
+  },
+  "runtime": {
+    "targetFPS": 60,
+    "offscreenRendering": true,
+    "useWorkerForCV": true
+  },
+  "modules": {
+    "videoInput": {
+      "id": "source_webcam",
+      "autoStart": true,
+      "constraints": {
+        "video": {
+          "width": {
+            "ideal": 1280
+          },
+          "height": {
+            "ideal": 720
+          },
+          "facingMode": "user",
+          "frameRate": {
+            "ideal": 30
+          }
+        },
+        "audio": false
+      },
+      "processing": {
+        "mirror": true,
+        "resizeTo": [
+          512,
+          512
+        ]
+      }
+    },
+    "computerVision": {
+      "engine": "MediaPipe",
+      "solution": "ImageSegmenter",
+      "config": {
+        "modelAssetPath": "./src/libs/selfie_segmenter.tflite",
+        "delegate": "GPU",
+        "runningMode": "VIDEO",
+        "outputCategoryMask": false,
+        "outputConfidenceMasks": true
+      },
+      "syncStrategy": "raf_aligned"
+    },
+    "renderer": {
+      "engine": "ThreeJS",
+      "canvasId": "main-canvas",
+      "pixelRatio": "window.devicePixelRatio",
+      "clearColor": "#000000",
+      "camera": {
+        "type": "OrthographicCamera",
+        "params": {
+          "left": -1,
+          "right": 1,
+          "top": 1,
+          "bottom": -1,
+          "near": 0.1,
+          "far": 100
+        },
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 10
+        },
+        "lookAt": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    "sceneGraph": {
+      "objects": [
+        {
+          "id": "pointCloudObject",
+          "type": "Particles",
+          "geometry": {
+            "type": "PlaneBufferGeometry",
+            "args": [
+              2,
+              2,
+              300,
+              300
+            ]
+          },
+          "material": {
+            "type": "ShaderMaterial",
+            "vertexShader": "pointcloud.vert",
+            "fragmentShader": "pointcloud.frag",
+            "uniforms": {
+              "uColor": {
+                "type": "vec3",
+                "value": [
+                  0.075,
+                  0.133,
+                  0.984
+                ],
+                "description": "Base effect color (Blue)"
+              },
+              "uPointSize": {
+                "type": "float",
+                "value": 3.0,
+                "description": "Point size"
+              },
+              "uTexture": {
+                "source": "source_webcam",
+                "type": "sampler2D"
+              },
+              "uMask": {
+                "source": "cv_output_mask",
+                "type": "sampler2D"
+              },
+              "uTime": {
+                "type": "float",
+                "value": 0.0,
+                "autoUpdate": true
+              },
+              "uDepthIntensity": {
+                "type": "float",
+                "value": 0.4,
+                "description": "Z-axis distortion intensity"
+              },
+              "uShowBackground": {
+                "type": "float",
+                "value": 0.0,
+                "description": "0 = Figure Only, 1 = Show All"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ui": {
+      "containerId": "sidebar-controls",
+      "layout": {
+        "position": "absolute",
+        "top": "0",
+        "right": "0",
+        "width": "300px",
+        "height": "100%",
+        "backgroundColor": "rgba(0, 0, 0, 0.8)",
+        "backdropFilter": "blur(10px)"
+      },
+      "components": [
+        {
+          "type": "color",
+          "label": "Effect Color",
+          "binding": "sceneGraph.objects[0].material.uniforms.uColor.value"
+        },
+        {
+          "type": "slider",
+          "label": "Point Size",
+          "min": 0.1,
+          "max": 10.0,
+          "step": 0.1,
+          "binding": "sceneGraph.objects[0].material.uniforms.uPointSize.value"
+        },
+        {
+          "type": "slider",
+          "label": "Depth",
+          "min": 0.0,
+          "max": 2.0,
+          "step": 0.05,
+          "binding": "sceneGraph.objects[0].material.uniforms.uDepthIntensity.value"
+        }
+      ]
+    }
+  }
+}
